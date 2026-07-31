@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weekly Planner</title>
+<meta name="theme-color" content="#171A1D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --paper:#F2F4F3;
+    --paper-2:#EAEEEC;
+    --edge:#D7DEDB;
+    --rule:#C9D7DF;
+    --bar:#171A1D;
+    --ink:#1D3F73;
+    --redline:#B62F26;
+    --graphite:#5C6672;
+    --row:28px;
+    --ruleY:18px;
+
+    --display:'Archivo Narrow','Helvetica Neue',Arial,sans-serif;
+    --body:'Public Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{
+    margin:0;padding:0;background:var(--paper);
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  #planner{
+    font-family:var(--body);
+    background:var(--paper);
+    color:var(--bar);
+    font-size:13px;
+    line-height:1.45;
+    min-height:100vh;
+    min-height:100dvh;
+  }
+
+  /* ── top bar ─────────────────────────────────────────── */
+  .topbar{
+    display:flex;align-items:center;gap:14px;
+    background:var(--bar);color:var(--paper);
+    padding:9px 12px;
+    padding-top:calc(9px + env(safe-area-inset-top));
+    padding-left:calc(12px + env(safe-area-inset-left));
+    padding-right:calc(12px + env(safe-area-inset-right));
+  }
+  .brand{
+    font-family:var(--display);font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;font-size:12px;
+    white-space:nowrap;
+  }
+  .weeklabel{
+    font-family:var(--mono);font-size:11px;
+    color:#9DA7AF;letter-spacing:.04em;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;
+  }
+  .savestat{
+    font-family:var(--mono);font-size:10px;
+    color:#8B959C;letter-spacing:.02em;white-space:nowrap;
+    margin-right:4px;
+  }
+  .savestat.bad{color:#F0A9A2;font-weight:500}
+  .spacer{flex:1}
+  .nav{display:flex;align-items:center;gap:2px}
+  .tb{
+    background:transparent;border:1px solid #3A4046;color:var(--paper);
+    font-family:var(--display);font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;font-size:10.5px;white-space:nowrap;
+    padding:5px 9px;cursor:pointer;border-radius:2px;
+    min-height:30px;
+  }
+  .tb:hover{background:#262B30}
+  .tb:focus-visible{outline:2px solid var(--paper);outline-offset:1px}
+  .tb.arrow{font-family:var(--body);font-size:14px;line-height:1;padding:5px 10px}
+
+  /* ── month reference strip ───────────────────────────── */
+  .monthstrip{
+    display:flex;
+    background:var(--paper-2);
+    border-bottom:2px solid var(--bar);
+    overflow-x:auto;
+  }
+  .minical{
+    flex:0 0 25%;width:25%;min-width:112px;
+    border-right:1px solid var(--edge);
+    padding:3px 5px 4px;
+  }
+  .minical:last-child{border-right:none}
+  .minical-head{
+    font-family:var(--display);font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;font-size:8px;
+    color:var(--bar);margin-bottom:2px;
+  }
+  .minical-grid{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    gap:0;
+  }
+  .mc-dow{
+    font-family:var(--mono);font-size:6px;color:var(--graphite);
+    text-align:center;line-height:10px;
+  }
+  .mc-day{
+    -webkit-appearance:none;appearance:none;
+    border:none;background:transparent;padding:0;margin:0;
+    font-family:var(--body);font-size:7.5px;color:var(--ink);
+    text-align:center;line-height:12px;height:12px;width:100%;
+    cursor:pointer;border-radius:50%;
+  }
+  .mc-day.other{color:#B7BEC2}
+  .mc-day.inweek{background:rgba(29,63,115,.1);border-radius:2px}
+  .mc-day.today{background:var(--ink);color:var(--paper);font-weight:600;border-radius:50%}
+  .mc-day:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+  /* ── week spread ─────────────────────────────────────── */
+  .spread{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr 20px 1fr 1fr .62fr;
+    background:var(--paper);
+  }
+  .gutter{
+    background:var(--paper-2);
+    border-left:1px solid var(--edge);
+    border-right:1px solid var(--edge);
+    background-image:radial-gradient(circle at 50% 11px,#C2CBC8 0 3.4px,transparent 3.6px);
+    background-size:100% 26px;
+    background-repeat:repeat-y;
+  }
+
+  .day{border-right:1px solid var(--edge);min-width:0;display:flex;flex-direction:column}
+  .day:last-child{border-right:none}
+
+  .dayhead{
+    background:var(--bar);color:var(--paper);
+    padding:5px 7px 4px;
+    display:flex;align-items:baseline;gap:6px;
+    border-bottom:1px solid var(--bar);
+  }
+  .dayname{
+    font-family:var(--display);font-weight:700;
+    text-transform:uppercase;letter-spacing:.1em;font-size:11px;
+  }
+  .daynum{font-family:var(--display);font-weight:500;font-size:15px;line-height:1}
+  .julian{
+    font-family:var(--mono);font-size:9px;color:#8B959C;
+    margin-left:auto;letter-spacing:.02em;
+  }
+  .day.today .dayhead{background:var(--ink)}
+  .day.today .julian{color:#AEC3E2}
+  .day.weekend .dayhead{background:#3A4046}
+
+  .colbody{
+    flex:1;
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0 var(--ruleY),
+      var(--rule) var(--ruleY) calc(var(--ruleY) + 1px),
+      transparent calc(var(--ruleY) + 1px) var(--row));
+    min-height:calc(var(--row) * 11);
+    padding:0 6px;
+  }
+
+  /* ── items ───────────────────────────────────────────── */
+  .item{
+    display:flex;align-items:flex-start;gap:5px;
+    min-height:var(--row);
+  }
+  .box{
+    flex:none;width:12px;height:12px;margin-top:8px;
+    border:1.5px solid var(--graphite);border-radius:1px;
+    background:transparent;cursor:pointer;padding:0;
+    position:relative;
+  }
+  .box:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+  .item.done .box{border-color:var(--ink);background:var(--ink)}
+  .item.done .box::after{
+    content:'';position:absolute;left:2px;top:.5px;
+    width:5px;height:8px;border-right:1.5px solid var(--paper);
+    border-bottom:1.5px solid var(--paper);transform:rotate(40deg);
+  }
+  .cell{
+    flex:1;min-width:0;
+    line-height:var(--row);
+  }
+  .txt{
+    display:inline;
+    font-family:var(--body);font-size:12.5px;
+    color:var(--ink);
+    word-break:break-word;
+    outline:none;
+    cursor:text;
+  }
+  .txt:focus{background:rgba(29,63,115,.06);border-radius:2px}
+  .item.done .txt{color:var(--graphite);text-decoration:line-through}
+  .chip{
+    display:inline-block;
+    font-family:var(--display);font-weight:600;font-size:9.5px;
+    text-transform:uppercase;letter-spacing:.07em;
+    color:var(--ink);background:rgba(29,63,115,.1);
+    padding:1px 4px;border-radius:2px;margin-left:5px;
+    white-space:nowrap;vertical-align:1px;
+  }
+  .carry{
+    font-family:var(--mono);font-size:9.5px;color:var(--redline);
+    margin-left:5px;white-space:nowrap;
+    border-bottom:1px solid var(--redline);
+  }
+  .kill{
+    flex:none;background:transparent;border:none;cursor:pointer;
+    color:#A9B2B8;font-size:15px;
+    height:var(--row);line-height:var(--row);
+    padding:0 2px;
+    opacity:0;transition:opacity .1s;
+  }
+  .item:hover .kill,.kill:focus-visible{opacity:1}
+  .kill:hover{color:var(--redline)}
+  .kill:focus-visible{outline:2px solid var(--redline);outline-offset:-1px}
+
+  .add{
+    width:100%;border:none;background:transparent;
+    font-family:var(--body);font-size:12.5px;
+    line-height:var(--row);height:var(--row);
+    color:var(--ink);padding:0 0 0 17px;outline:none;
+  }
+  .add::placeholder{color:#A9B2B8;font-style:italic}
+  .add:focus{background:rgba(29,63,115,.05)}
+
+  /* ── lower block ─────────────────────────────────────── */
+  .lower{
+    display:grid;grid-template-columns:1fr 1fr;
+    border-top:2px solid var(--bar);
+  }
+  .block{border-right:1px solid var(--edge);min-width:0}
+  .block:last-child{border-right:none}
+  .blockhead{
+    background:var(--paper-2);
+    border-bottom:1px solid var(--edge);
+    padding:5px 8px;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .blocktitle{
+    font-family:var(--display);font-weight:700;
+    text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;
+  }
+  .blocknote{
+    font-family:var(--mono);font-size:9.5px;color:var(--graphite);
+    margin-left:auto;
+  }
+  .blockbody{
+    padding:0 8px 6px;
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0 var(--ruleY),
+      var(--rule) var(--ruleY) calc(var(--ruleY) + 1px),
+      transparent calc(var(--ruleY) + 1px) var(--row));
+    min-height:calc(var(--row) * 6);
+  }
+  .subhead{
+    font-family:var(--display);font-weight:700;font-size:10px;
+    text-transform:uppercase;letter-spacing:.11em;
+    color:var(--bar);
+    height:var(--row);line-height:calc(var(--ruleY) + 1px);
+    background:rgba(23,26,29,.07);
+    margin:0 -8px;padding:0 8px;
+  }
+  .empty{
+    height:var(--row);line-height:calc(var(--ruleY) + 1px);
+    font-size:11.5px;color:#9AA3A9;font-style:italic;
+  }
+
+  /* ── mobile day strip ────────────────────────────────── */
+  .strip{display:none}
+  #planner.narrow .strip{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    background:var(--bar);border-top:1px solid #2C3237;
+  }
+  .pill{
+    background:transparent;border:none;border-right:1px solid #2C3237;
+    color:#8B959C;cursor:pointer;padding:6px 0 7px;
+    font-family:var(--display);text-transform:uppercase;
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+    min-height:44px;
+  }
+  .pill:last-child{border-right:none}
+  .pill .l{font-size:9px;letter-spacing:.1em;font-weight:600}
+  .pill .n{font-size:14px;font-weight:500;line-height:1}
+  .pill .dot{
+    width:4px;height:4px;border-radius:50%;
+    background:var(--redline);margin-top:1px;
+  }
+  .pill.sel{background:var(--paper);color:var(--bar)}
+  .pill.istoday .n{color:#7FA8E8}
+  .pill.sel.istoday .n{color:var(--ink)}
+
+  #planner.narrow .spread{grid-template-columns:1fr}
+  #planner.narrow .gutter{display:none}
+  #planner.narrow .day{display:none;border-right:none}
+  #planner.narrow .day.shown{display:flex}
+  #planner.narrow .colbody{min-height:calc(var(--row) * 9)}
+  #planner.narrow .lower{grid-template-columns:1fr}
+  #planner.narrow .block{border-right:none;border-bottom:1px solid var(--edge)}
+  #planner.narrow .kill{opacity:1}
+  #planner.narrow .brand{display:none}
+  #planner.narrow .weeklabel{display:none}
+  #planner.narrow .nav{gap:1px}
+  #planner.narrow .tb{padding:5px 6px;font-size:9px}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:var(--bar);color:var(--paper);
+    font-family:var(--mono);font-size:11px;
+    padding:7px 13px;border-radius:2px;
+    opacity:0;pointer-events:none;transition:opacity .18s;
+    z-index:10;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="planner">
+  <div class="topbar">
+    <span class="brand">Hanto&nbsp;+&nbsp;Clarke</span>
+    <span class="weeklabel" id="weeklabel"></span>
+    <span class="spacer"></span>
+    <span class="savestat" id="savestat"></span>
+    <div class="nav">
+      <button class="tb arrow" id="prev" title="Previous week" aria-label="Previous week">&lsaquo;</button>
+      <button class="tb" id="today">This week</button>
+      <button class="tb arrow" id="next" title="Next week" aria-label="Next week">&rsaquo;</button>
+      <button class="tb" id="export" title="Copy the whole week as text">Export</button>
+      <button class="tb" id="import" title="Paste an exported planner.json to merge it in">Import</button>
+    </div>
+  </div>
+
+  <div class="monthstrip" id="monthstrip"></div>
+  <div class="strip" id="strip"></div>
+  <div class="spread" id="spread"></div>
+
+  <div class="lower">
+    <div class="block">
+      <div class="blockhead">
+        <span class="blocktitle">Waiting on</span>
+        <span class="blocknote" id="waitcount"></span>
+      </div>
+      <div class="blockbody" id="waitbody"></div>
+    </div>
+    <div class="block">
+      <div class="blockhead">
+        <span class="blocktitle">Memo</span>
+        <span class="blocknote">type #job to file it</span>
+      </div>
+      <div class="blockbody" id="memobody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  const KEY='dayplanner:v1';
+  const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  let state={items:[],waiting:[],memo:[],dead:{}};
+  let weekStart=monday(new Date());
+  let selected=iso(new Date());
+  let focusKey=null;
+
+  /* ── dates ─────────────────────────────────────────── */
+  function iso(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function parse(s){const p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+  function monday(d){
+    const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    x.setDate(x.getDate()-((x.getDay()+6)%7));
+    return x;
+  }
+  function addDays(d,n){
+    const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    x.setDate(x.getDate()+n);return x;
+  }
+  function julian(d){
+    return Math.floor((d-new Date(d.getFullYear(),0,0))/86400000);
+  }
+  function isoWeek(d){
+    const t=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    t.setDate(t.getDate()+3-((t.getDay()+6)%7));
+    const y0=new Date(t.getFullYear(),0,1);
+    return Math.ceil(((t-y0)/86400000+1)/7);
+  }
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function daysBetween(a,b){return Math.round((parse(b)-parse(a))/86400000);}
+
+  /* Mon-start weeks spanning a whole month, so the mini calendar always
+     shows complete rows (may include a few days from the adjacent months). */
+  function monthGrid(year,mIdx){
+    const first=new Date(year,mIdx,1);
+    const last=new Date(year,mIdx+1,0);
+    const start=monday(first);
+    const end=addDays(monday(last),6);
+    const days=[];
+    let d=start;
+    while(d<=end){days.push(d);d=addDays(d,1);}
+    return days;
+  }
+
+  /* ── storage: IndexedDB, one object store, one key holding the
+     whole planner object. Phase 2 (OneDrive sync) reuses merge()
+     below against the same shape read from Graph. ─────────── */
+  const DB_NAME='plannerdb',DB_STORE='kv',DB_VERSION=1;
+  let dbPromise=null;
+  function openDB(){
+    if(dbPromise)return dbPromise;
+    dbPromise=new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=()=>{req.result.createObjectStore(DB_STORE);};
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+    return dbPromise;
+  }
+  function idbGet(key){
+    return openDB().then(db=>new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const rq=tx.objectStore(DB_STORE).get(key);
+      rq.onsuccess=()=>resolve(rq.result);
+      rq.onerror=()=>reject(rq.error);
+    }));
+  }
+  function idbSet(key,val){
+    return openDB().then(db=>new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put(val,key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    }));
+  }
+
+  let writing=false,pending=false;
+
+  function blank(){return {items:[],waiting:[],memo:[],dead:{}};}
+  function stamp(o){o.mod=Date.now();return o;}
+
+  function hhmm(d){
+    let h=d.getHours();const m=String(d.getMinutes()).padStart(2,'0');
+    const ap=h<12?'am':'pm';h=h%12||12;
+    return h+':'+m+ap;
+  }
+  function setStatus(txt,bad){
+    const el=$('savestat');
+    if(!el)return;
+    el.textContent=txt;
+    el.classList.toggle('bad',!!bad);
+  }
+
+  /* Union two copies of the planner by item id.
+     Newest edit wins; a tombstone kills an item unless it was edited later.
+     Kept for Phase 2 — merging local state against whatever OneDrive returns. */
+  function merge(a,b){
+    const dead=Object.assign({},a.dead||{});
+    const bd=b.dead||{};
+    for(const k in bd){ if(!dead[k]||bd[k]>dead[k]) dead[k]=bd[k]; }
+    const out={items:[],waiting:[],memo:[],dead:dead};
+    ['items','waiting','memo'].forEach(L=>{
+      const by={};
+      (a[L]||[]).concat(b[L]||[]).forEach(it=>{
+        if(!it||!it.id)return;
+        const prev=by[it.id];
+        if(!prev||(it.mod||0)>=(prev.mod||0)) by[it.id]=it;
+      });
+      out[L]=Object.keys(by).map(k=>by[k])
+        .filter(it=>!(dead[it.id]&&dead[it.id]>=(it.mod||0)));
+    });
+    return out;
+  }
+
+  async function readStore(){
+    try{
+      const v=await idbGet(KEY);
+      if(v) return typeof v==='string'?JSON.parse(v):v;
+    }catch(e){}
+    return null;
+  }
+
+  async function writeStore(){
+    if(writing){pending=true;return;}
+    writing=true;pending=false;
+    try{
+      await idbSet(KEY,JSON.stringify(state));
+      setStatus('Saved '+hhmm(new Date()));
+    }catch(e){
+      setStatus('Not saved — retrying',true);
+      pending=true;
+    }
+    writing=false;
+    if(pending) writeStore();
+  }
+
+  /* immediate — no debounce window for a jot to fall into */
+  function save(){ setStatus('Saving…'); writeStore(); }
+
+  /* ── carry forward ─────────────────────────────────── */
+  function carryForward(){
+    const t=iso(new Date());let moved=0;
+    state.items.forEach(it=>{
+      if(!it.done && it.date && it.date<t){
+        if(!it.origin) it.origin=it.date;
+        it.date=t;stamp(it);moved++;
+      }
+    });
+    if(moved) save();
+    return moved;
+  }
+
+  /* ── job parsing: last # wins, rest of line is the job ── */
+  function split(raw){
+    const s=raw.trim();
+    const h=s.lastIndexOf('#');
+    if(h>0){
+      const job=s.slice(h+1).trim();
+      const text=s.slice(0,h).trim();
+      if(job&&text) return {text:text,job:job};
+    }
+    return {text:s,job:''};
+  }
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+  /* ── mutations ─────────────────────────────────────── */
+  function addItem(list,raw,date){
+    const p=split(raw);
+    if(!p.text) return;
+    const o=stamp({id:uid(),text:p.text,job:p.job,done:false});
+    if(date) o.date=date;else o.created=iso(new Date());
+    state[list].push(o);save();
+  }
+  function find(list,id){return state[list].find(x=>x.id===id);}
+  function toggle(list,id){const i=find(list,id);if(i){i.done=!i.done;stamp(i);save();}}
+  function remove(list,id){
+    state[list]=state[list].filter(x=>x.id!==id);
+    state.dead=state.dead||{};
+    state.dead[id]=Date.now();
+    save();
+  }
+  function retext(list,id,v){
+    const i=find(list,id);if(!i)return;
+    const p=split(v);
+    i.text=p.text; if(p.job) i.job=p.job;
+    stamp(i);save();
+  }
+
+  /* ── rendering ─────────────────────────────────────── */
+  const $=id=>document.getElementById(id);
+
+  function itemEl(list,it){
+    const row=document.createElement('div');
+    row.className='item'+(it.done?' done':'');
+
+    const box=document.createElement('button');
+    box.className='box';box.type='button';
+    box.setAttribute('aria-label',it.done?'Mark not done':'Mark done');
+    box.onclick=()=>{toggle(list,it.id);render();};
+    row.appendChild(box);
+
+    const cell=document.createElement('div');
+    cell.className='cell';
+    row.appendChild(cell);
+
+    const wrap=document.createElement('span');
+    wrap.className='txt';
+    wrap.contentEditable='true';
+    wrap.spellcheck=false;
+    wrap.textContent=it.text;
+    wrap.onblur=()=>{
+      const v=wrap.textContent.trim();
+      if(!v){remove(list,it.id);render();return;}
+      retext(list,it.id,v);render();
+    };
+    wrap.onkeydown=e=>{
+      if(e.key==='Enter'){e.preventDefault();wrap.blur();}
+      if(e.key==='Escape'){wrap.textContent=it.text;wrap.blur();}
+    };
+    cell.appendChild(wrap);
+
+    // job chip — shown on day items and in Waiting On (flat list, job on the line)
+    if(it.job && (list==='items'||list==='waiting')){
+      const c=document.createElement('span');
+      c.className='chip';c.textContent=it.job;
+      cell.appendChild(c);
+    }
+    // how long it's been rolling over
+    if(it.origin && !it.done && it.date){
+      const n=daysBetween(it.origin,it.date);
+      if(n>0){
+        const c=document.createElement('span');
+        c.className='carry';c.textContent='↳'+n+'d';
+        c.title='Carried forward '+n+' day'+(n>1?'s':'')+' from '+it.origin;
+        cell.appendChild(c);
+      }
+    }
+
+    const k=document.createElement('button');
+    k.className='kill';k.type='button';k.innerHTML='&times;';
+    k.setAttribute('aria-label','Delete');
+    k.onclick=()=>{remove(list,it.id);render();};
+    row.appendChild(k);
+
+    return row;
+  }
+
+  function addEl(list,date,ph,key){
+    const inp=document.createElement('input');
+    inp.className='add';inp.type='text';inp.placeholder=ph;
+    inp.setAttribute('aria-label',ph);
+    inp.onkeydown=e=>{
+      if(e.key!=='Enter')return;
+      const v=inp.value;
+      if(!v.trim())return;
+      addItem(list,v,date);
+      focusKey=key;
+      render();
+    };
+    if(focusKey===key) setTimeout(()=>inp.focus(),0);
+    return inp;
+  }
+
+  function renderSpread(){
+    const sp=$('spread');sp.innerHTML='';
+    const t=iso(new Date());
+    for(let i=0;i<7;i++){
+      if(i===4){const g=document.createElement('div');g.className='gutter';sp.appendChild(g);}
+      const d=addDays(weekStart,i),ds=iso(d);
+      const col=document.createElement('div');
+      col.className='day'+(ds===t?' today':'')+(i>=5?' weekend':'')+(ds===selected?' shown':'');
+
+      const h=document.createElement('div');h.className='dayhead';
+      h.innerHTML='<span class="dayname">'+DAYS[i]+'</span>'+
+                  '<span class="daynum">'+d.getDate()+'</span>'+
+                  '<span class="julian">'+julian(d)+'</span>';
+      col.appendChild(h);
+
+      const body=document.createElement('div');body.className='colbody';
+      state.items.filter(x=>x.date===ds).forEach(it=>body.appendChild(itemEl('items',it)));
+      body.appendChild(addEl('items',ds,'+ task','day-'+ds));
+      col.appendChild(body);
+      sp.appendChild(col);
+    }
+  }
+
+  function renderMonths(){
+    const el=$('monthstrip');el.innerHTML='';
+    const t=iso(new Date());
+    const wkEnd=iso(addDays(weekStart,6));
+    const base=new Date(weekStart.getFullYear(),weekStart.getMonth(),1);
+    for(let i=0;i<4;i++){
+      const monDate=new Date(base.getFullYear(),base.getMonth()+i,1);
+      const mIdx=monDate.getMonth(),mYear=monDate.getFullYear();
+
+      const cal=document.createElement('div');cal.className='minical';
+      const head=document.createElement('div');head.className='minical-head';
+      head.textContent=MON[mIdx]+' '+mYear;
+      cal.appendChild(head);
+
+      const grid=document.createElement('div');grid.className='minical-grid';
+      ['M','T','W','T','F','S','S'].forEach(l=>{
+        const s=document.createElement('span');s.className='mc-dow';s.textContent=l;
+        grid.appendChild(s);
+      });
+      monthGrid(mYear,mIdx).forEach(d=>{
+        const ds=iso(d);
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='mc-day'
+          +(d.getMonth()!==mIdx?' other':'')
+          +(ds===t?' today':'')
+          +(ds>=iso(weekStart)&&ds<=wkEnd?' inweek':'');
+        btn.textContent=d.getDate();
+        btn.setAttribute('aria-label',MON[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear());
+        btn.onclick=()=>{weekStart=monday(d);selected=ds;render();};
+        grid.appendChild(btn);
+      });
+      cal.appendChild(grid);
+      el.appendChild(cal);
+    }
+  }
+
+  function renderStrip(){
+    const s=$('strip');s.innerHTML='';
+    const t=iso(new Date());
+    for(let i=0;i<7;i++){
+      const d=addDays(weekStart,i),ds=iso(d);
+      const open=state.items.filter(x=>x.date===ds&&!x.done).length;
+      const b=document.createElement('button');
+      b.className='pill'+(ds===selected?' sel':'')+(ds===t?' istoday':'');
+      b.type='button';
+      b.innerHTML='<span class="l">'+DAYS[i][0]+'</span><span class="n">'+d.getDate()+'</span>'+
+                  (open?'<span class="dot"></span>':'');
+      b.onclick=()=>{selected=ds;render();};
+      s.appendChild(b);
+    }
+  }
+
+  function renderWaiting(){
+    const b=$('waitbody');b.innerHTML='';
+    const open=state.waiting.filter(x=>!x.done);
+    $('waitcount').textContent=open.length?open.length+' open':'';
+    if(!state.waiting.length){
+      const e=document.createElement('div');
+      e.className='empty';e.textContent='Nothing outstanding on anyone else.';
+      b.appendChild(e);
+    }
+    state.waiting.forEach(it=>b.appendChild(itemEl('waiting',it)));
+    b.appendChild(addEl('waiting',null,'+ who owes you what  #job','wait'));
+  }
+
+  function renderMemo(){
+    const b=$('memobody');b.innerHTML='';
+    const jobs=[];
+    state.memo.forEach(x=>{const j=x.job||'';if(!jobs.includes(j))jobs.push(j);});
+    jobs.sort((a,c)=>a===''?1:c===''?-1:a.localeCompare(c));
+
+    if(!state.memo.length){
+      const e=document.createElement('div');
+      e.className='empty';e.textContent='Notes that outlast the week go here.';
+      b.appendChild(e);
+    }
+    jobs.forEach(j=>{
+      if(j){
+        const h=document.createElement('div');
+        h.className='subhead';h.textContent=j;
+        b.appendChild(h);
+      }
+      state.memo.filter(x=>(x.job||'')===j).forEach(it=>b.appendChild(itemEl('memo',it)));
+    });
+    b.appendChild(addEl('memo',null,'+ note  #job','memo'));
+  }
+
+  function renderLabel(){
+    const a=weekStart,z=addDays(weekStart,6);
+    const span=MON[a.getMonth()]+' '+a.getDate()+
+      ' – '+(a.getMonth()!==z.getMonth()?MON[z.getMonth()]+' ':'')+z.getDate();
+    const n=new Date(),left=julian(new Date(n.getFullYear(),11,31))-julian(n);
+    $('weeklabel').textContent='Week '+isoWeek(a)+'  ·  '+span+', '+z.getFullYear()+
+      '  ·  day '+julian(n)+', '+left+' left';
+  }
+
+  function render(){
+    renderLabel();renderMonths();renderStrip();renderSpread();renderWaiting();renderMemo();
+    focusKey=null;
+  }
+
+  function measure(){
+    const p=$('planner');
+    p.classList.toggle('narrow',p.getBoundingClientRect().width<720);
+  }
+
+  /* ── export ────────────────────────────────────────── */
+  function exportText(){
+    const a=weekStart,z=addDays(weekStart,6);
+    const L=[];
+    L.push('WEEK '+isoWeek(a)+' — '+MON[a.getMonth()]+' '+a.getDate()+
+           ' – '+MON[z.getMonth()]+' '+z.getDate()+', '+z.getFullYear());
+    L.push('Hanto + Clarke');L.push('');
+    for(let i=0;i<7;i++){
+      const d=addDays(weekStart,i),ds=iso(d);
+      const rows=state.items.filter(x=>x.date===ds);
+      L.push(DAYS[i].toUpperCase()+' '+MON[d.getMonth()]+' '+d.getDate()+'  (day '+julian(d)+')');
+      if(!rows.length)L.push('   —');
+      rows.forEach(it=>{
+        let s='   ['+(it.done?'x':' ')+'] '+it.text;
+        if(it.job)s+='  #'+it.job;
+        if(it.origin&&!it.done){
+          const n=daysBetween(it.origin,it.date);
+          if(n>0)s+='  (carried '+n+'d)';
+        }
+        L.push(s);
+      });
+      L.push('');
+    }
+    L.push('WAITING ON');
+    if(!state.waiting.length)L.push('   —');
+    state.waiting.forEach(it=>{
+      L.push('   ['+(it.done?'x':' ')+'] '+it.text+(it.job?'  #'+it.job:''));
+    });
+    L.push('');L.push('MEMO');
+    if(!state.memo.length)L.push('   —');
+    const jobs=[];
+    state.memo.forEach(x=>{const j=x.job||'';if(!jobs.includes(j))jobs.push(j);});
+    jobs.sort((x,y)=>x===''?1:y===''?-1:x.localeCompare(y));
+    jobs.forEach(j=>{
+      L.push('   '+(j?j.toUpperCase():'GENERAL'));
+      state.memo.filter(x=>(x.job||'')===j).forEach(it=>{
+        L.push('      ['+(it.done?'x':' ')+'] '+it.text);
+      });
+    });
+    return L.join('\n');
+  }
+
+  let toastTimer=null;
+  function toast(msg){
+    const t=$('toast');t.textContent=msg;t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+  }
+
+  async function doExport(){
+    const txt=exportText();
+    try{
+      await navigator.clipboard.writeText(txt);
+      toast('Week copied to clipboard');
+    }catch(e){
+      try{
+        const url=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+        const a=document.createElement('a');
+        a.href=url;a.download='week-'+iso(weekStart)+'.txt';a.click();
+        URL.revokeObjectURL(url);
+        toast('Week downloaded');
+      }catch(e2){toast('Copy blocked by the browser');}
+    }
+  }
+
+  /* ── import — manual escape hatch, merges rather than replaces ── */
+  function parseImport(txt){
+    /* Accepts either a raw JSON dump of the state object, or the plain-text
+       export format (best-effort: recovers items/waiting/memo text lines). */
+    try{
+      const obj=JSON.parse(txt);
+      if(obj&&typeof obj==='object'&&(obj.items||obj.waiting||obj.memo)){
+        return {items:obj.items||[],waiting:obj.waiting||[],memo:obj.memo||[],dead:obj.dead||{}};
+      }
+    }catch(e){}
+    return null;
+  }
+  async function doImport(){
+    const txt=window.prompt('Paste an exported planner.json to merge it in:');
+    if(!txt)return;
+    const incoming=parseImport(txt);
+    if(!incoming){toast('Could not read that — expected exported JSON');return;}
+    state=merge(state,incoming);
+    save();render();
+    toast('Imported and merged');
+  }
+
+  /* ── wire up ───────────────────────────────────────── */
+  $('prev').onclick=()=>{weekStart=addDays(weekStart,-7);selected=iso(weekStart);render();};
+  $('next').onclick=()=>{weekStart=addDays(weekStart,7);selected=iso(weekStart);render();};
+  $('today').onclick=()=>{weekStart=monday(new Date());selected=iso(new Date());render();};
+  $('export').onclick=doExport;
+  $('import').onclick=doImport;
+
+  let rt=null;
+  window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(measure,120);});
+
+  /* last-ditch flush when iOS backgrounds the tab */
+  function flush(){
+    try{idbSet(KEY,JSON.stringify(state));}catch(e){}
+  }
+  window.addEventListener('pagehide',flush);
+  window.addEventListener('beforeunload',flush);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState!=='visible') flush();
+  });
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+
+  (async function init(){
+    measure();
+    if(navigator.storage && navigator.storage.persist){
+      try{await navigator.storage.persist();}catch(e){}
+    }
+    const stored=await readStore();
+    if(stored) state=stored;
+    const moved=carryForward();
+    render();
+    if(!moved)setStatus('Up to date');
+    if(moved)toast(moved+' unfinished item'+(moved>1?'s':'')+' carried to today');
+  })();
+})();
+</script>
+</body>
+</html>
