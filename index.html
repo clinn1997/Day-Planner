@@ -318,7 +318,9 @@
   #planner.narrow .kill{opacity:1}
   #planner.narrow .brand{display:none}
   #planner.narrow .weeklabel{display:none}
-  #planner.narrow .nav{gap:1px}
+  #planner.narrow .topbar{flex-wrap:wrap;row-gap:6px}
+  #planner.narrow .spacer{flex-basis:100%;height:0}
+  #planner.narrow .nav{gap:3px;flex-wrap:wrap}
   #planner.narrow .tb{padding:5px 6px;font-size:9px}
 
   .toast{
@@ -340,12 +342,14 @@
     <span class="weeklabel" id="weeklabel"></span>
     <span class="spacer"></span>
     <span class="savestat" id="savestat"></span>
+    <span class="savestat" id="syncstat"></span>
     <div class="nav">
       <button class="tb arrow" id="prev" title="Previous week" aria-label="Previous week">&lsaquo;</button>
       <button class="tb" id="today">This week</button>
       <button class="tb arrow" id="next" title="Next week" aria-label="Next week">&rsaquo;</button>
       <button class="tb" id="export" title="Copy the whole week as text">Export</button>
       <button class="tb" id="import" title="Paste an exported planner.json to merge it in">Import</button>
+      <button class="tb" id="connect" title="Sync with OneDrive">Connect OneDrive</button>
     </div>
   </div>
 
@@ -373,6 +377,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="lib/msal-browser.min.js"></script>
 <script>
 (function(){
   const KEY='dayplanner:v1';
@@ -470,6 +475,12 @@
     el.textContent=txt;
     el.classList.toggle('bad',!!bad);
   }
+  function setSyncStatus(txt,bad){
+    const el=$('syncstat');
+    if(!el)return;
+    el.textContent=txt;
+    el.classList.toggle('bad',!!bad);
+  }
 
   /* Union two copies of the planner by item id.
      Newest edit wins; a tombstone kills an item unless it was edited later.
@@ -515,7 +526,31 @@
   }
 
   /* immediate — no debounce window for a jot to fall into */
-  function save(){ setStatus('Saving…'); writeStore(); }
+  let dirty=false;
+  const changeListeners=[];
+  function save(){
+    setStatus('Saving…');
+    writeStore();
+    dirty=true;
+    changeListeners.forEach(cb=>{try{cb();}catch(e){}});
+  }
+
+  /* ── integration surface for sync.js (Phase 2 / OneDrive) — sync.js
+     never touches state/IndexedDB directly, only through these. ── */
+  window.Planner={
+    getState:()=>state,
+    isDirty:()=>dirty,
+    markPushed:()=>{dirty=false;},
+    onLocalChange:cb=>{changeListeners.push(cb);},
+    setSyncStatus,
+    applyRemote(remote){
+      if(!remote)return state;
+      const before=JSON.stringify(state);
+      state=merge(state,remote);
+      if(JSON.stringify(state)!==before){render();writeStore();}
+      return state;
+    },
+  };
 
   /* ── carry forward ─────────────────────────────────── */
   function carryForward(){
@@ -898,5 +933,6 @@
   })();
 })();
 </script>
+<script src="sync.js"></script>
 </body>
 </html>
