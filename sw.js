@@ -1,4 +1,4 @@
-const CACHE = 'planner-shell-v2';
+const CACHE = 'planner-shell-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,6 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
-  './lib/msal-browser.min.js',
   './sync.js'
 ];
 

@@ -14,7 +14,7 @@ phases) — that document is the source of truth for scope and non-negotiables.
 - Storage: IndexedDB (`plannerdb` / store `kv` / key `dayplanner:v1`), replacing the
   original artifact's `window.storage`. `merge()` is already ported and unit-verified
   (whole-weeks, month-boundary, year-rollover date math) but currently unused —
-  it's there for Phase 2 to call against whatever Graph returns.
+  it's there for Phase 2 to call against whatever Dropbox returns.
 - Verified via a Playwright test suite (headless Chromium) against both localhost and
   the live URL: manifest fetch/parse, service worker registration reaching `active`,
   add/edit/delete entries persisting across reload, month-strip click-to-navigate,
@@ -37,26 +37,47 @@ phases) — that document is the source of truth for scope and non-negotiables.
   Shrunk once already for space; if asked again, the CSS lives in the `.monthstrip` /
   `.minical` / `.mc-day` rules near the top of `index.html`'s `<style>` block.
 
-## Phase 2 — not started yet
+## Phase 2 — switched from OneDrive to Dropbox mid-build
 
-User wants to live on Phase 1 for a while first (deliberate — spec's own instruction)
-before starting OneDrive sync. When picking this back up:
+Original plan (personal Microsoft account, MSAL.js, Graph) hit a real blocker: signing
+in to the Azure Portal itself (just to create the app registration) repeatedly threw
+AADSTS50058, then AADSTS16000 — a tenant-resolution problem in the portal's own
+identity flow, unrelated to this app's code, and not something worth continuing to
+fight. Pivoted to Dropbox instead. Also caught along the way: Netlify Blobs was briefly
+considered as an alternative and rejected — it would require a Netlify Function (a
+backend process), which spec.md's non-negotiable #2 explicitly rules out. Dropbox
+preserves the original "static files + client-side OAuth directly to the provider, no
+backend" architecture.
 
-1. Re-read `spec.md`'s "Phase 2" and "Verify rather than assume" sections in full —
-   this file is a summary, not a replacement.
-2. Biggest known risks, in order of how much they could blow up the timeline:
-   - Whether `Files.ReadWrite.AppFolder` is actually grantable for a **personal**
-     Microsoft account (spec explicitly wants personal, not the work HCGC tenant).
-   - MSAL.js silent token renewal under Safari's ITP, especially surviving multi-week
-     gaps between launches on the iPhone — the iframe-based silent renewal path is
-     the likely failure point.
-3. Rough estimate given to the user: ~3-5 hours of build time, but wall-clock spread
-   over 2-3 days because of the Azure app registration step (user-side, ~15-30 min)
-   and needing genuine two-device testing for the sync test checklist (same entry
-   edited both devices, delete propagation, offline queue).
-4. First concrete step when resuming: walk the user through Azure Portal → App
-   registrations → new SPA registration, personal-account support type, redirect URI
-   set to the Netlify origin.
+**Current state: code is written, not yet tested live.**
+
+- `sync.js` fully rewritten for Dropbox: OAuth 2.0 auth-code + PKCE (public client, no
+  secret, no library — hand-rolled fetch calls since Dropbox has no browser SDK
+  equivalent to MSAL.js), full-page redirect flow (not popup), rev-based optimistic
+  concurrency in place of ETags. Same triggers/debounce/merge contract as before —
+  `index.html`'s `window.Planner` surface didn't need to change.
+- The user registered a Dropbox app (Scoped access, **App folder** type, permissions
+  `files.content.write` + `files.content.read`, Development status). App key
+  `pxcps9vs1jyzyuv` is already in `sync.js`. Redirect URI registered:
+  `https://suptdayplanner.netlify.app/`.
+- `lib/msal-browser.min.js` and its LICENSE removed; `sw.js` precache list and cache
+  version bumped (`planner-shell-v3`) to drop the stale MSAL reference.
+- `spec.md` updated in place: Phase 2 section rewritten for Dropbox, non-negotiable #2
+  reworded to say "personal cloud storage (Dropbox...)", and the "Verify rather than
+  assume" list swapped to the two open Dropbox questions below.
+
+Not yet done:
+1. **Commit and push** — none of the above has been committed yet as of this note.
+2. **Live test the actual sign-in flow** — click "Connect Dropbox" on the deployed
+   site and confirm the full redirect round-trip (authorize → Dropbox login → redirect
+   back with `?code=` → token exchange) actually works. This is the biggest unverified
+   assumption: that Dropbox's OAuth token endpoint serves CORS to a pure browser client
+   with no backend. Expected to work (it's Dropbox's documented PKCE/public-client
+   model) but unconfirmed against the live site.
+3. Run the full sync test checklist from `spec.md` once sign-in works: two-device edit
+   conflict, delete propagation, offline queue, and — the other open question —
+   whether the refresh token survives a multi-week gap between launches on a
+   Development-status app.
 
 ## Local environment notes
 

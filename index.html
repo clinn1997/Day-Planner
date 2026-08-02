@@ -349,7 +349,7 @@
       <button class="tb arrow" id="next" title="Next week" aria-label="Next week">&rsaquo;</button>
       <button class="tb" id="export" title="Copy the whole week as text">Export</button>
       <button class="tb" id="import" title="Paste an exported planner.json to merge it in">Import</button>
-      <button class="tb" id="connect" title="Sync with OneDrive">Connect OneDrive</button>
+      <button class="tb" id="connect" title="Sync with Dropbox">Connect Dropbox</button>
     </div>
   </div>
 
@@ -377,7 +377,6 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="lib/msal-browser.min.js"></script>
 <script>
 (function(){
   const KEY='dayplanner:v1';
@@ -484,7 +483,7 @@
 
   /* Union two copies of the planner by item id.
      Newest edit wins; a tombstone kills an item unless it was edited later.
-     Kept for Phase 2 — merging local state against whatever OneDrive returns. */
+     Kept for Phase 2 — merging local state against whatever Dropbox returns. */
   function merge(a,b){
     const dead=Object.assign({},a.dead||{});
     const bd=b.dead||{};
@@ -535,7 +534,7 @@
     changeListeners.forEach(cb=>{try{cb();}catch(e){}});
   }
 
-  /* ── integration surface for sync.js (Phase 2 / OneDrive) — sync.js
+  /* ── integration surface for sync.js (Phase 2 / Dropbox) — sync.js
      never touches state/IndexedDB directly, only through these. ── */
   window.Planner={
     getState:()=>state,

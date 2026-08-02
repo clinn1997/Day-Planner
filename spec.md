@@ -20,9 +20,9 @@ is desktop/web only — that limitation is the entire reason for this project.
 1. **Local-first.** Every write goes to IndexedDB on the device, synchronously from the
    user's perspective. The UI reads only local state. It must never await the network
    before showing an entry. Full functionality with the radio off.
-2. **No server to maintain.** Static files plus personal OneDrive as the sync backend. If
-   the design
-   starts requiring a backend process, stop and flag it.
+2. **No server to maintain.** Static files plus personal cloud storage (Dropbox, originally
+   spec'd as OneDrive — see Phase 2) as the sync backend. If the design starts requiring a
+   backend process, stop and flag it.
 3. **Installable.** Home screen icon, standalone display, no browser chrome.
 4. **No data loss, ever.** Prefer a duplicate entry over a lost one. Deletion is the only
    destructive act and it is always user-initiated.
@@ -42,25 +42,35 @@ Ship this first and let the user live on it for a week before starting phase 2.
 Phase 1 acceptance: airplane mode on, launch from home screen, add entries, force-quit,
 relaunch, entries are still there.
 
-## Phase 2 — OneDrive sync
+## Phase 2 — Dropbox sync
 
-Use a **personal** Microsoft account, not the HCGC work tenant. Rationale: no app
-registration approval from company IT, no corporate retention policy over the user's own
-working notes, and the data does not disappear if he leaves the company. If a work account
-is used instead, the only code difference is the authority URL, but expect to need admin
-consent.
+Originally spec'd against OneDrive/Microsoft Graph. Switched to Dropbox after hitting
+repeated Azure AD tenant-resolution errors (AADSTS50058, then AADSTS16000) trying to sign
+in to the Azure Portal itself to create the app registration — a portal-level identity
+problem, not something in this app's control, and not worth continuing to fight. Dropbox
+has no tenant concept for personal accounts, so this class of error can't recur. Everything
+else about the architecture (client-side only, no backend, PKCE public client, whole-
+document optimistic concurrency) carries over unchanged — only the provider and its APIs
+differ.
 
-- Microsoft Graph API for file read/write.
-- **MSAL.js** browser library, **auth code flow with PKCE** (public client, no secret).
-- Register the app in Azure Portal → App registrations as a **single-page application**.
-  Set the redirect URI to the deployed origin. For a personal account, choose the
-  "personal Microsoft accounts" supported-account-type.
-- Request the **narrowest scope that works**: `Files.ReadWrite.AppFolder` if it is
-  available for this account type, which confines the app to its own folder. Fall back to
-  `Files.ReadWrite` only if necessary, and note in the README that this grants broader
-  access than the app needs. Plus `offline_access` for a refresh token.
-- Store one file: `planner.json`.
-- Persist the refresh token via MSAL's cache; handle expiry by re-prompting, not by
+- Dropbox HTTP API (`content.dropboxapi.com` / `api.dropboxapi.com`) for file read/write,
+  called directly from the browser. No SDK library — hand-rolled fetch calls, since
+  Dropbox doesn't ship a browser bundle the way MSAL.js does for Graph.
+- **OAuth 2.0 auth-code flow with PKCE** (public client, no secret), full-page redirect
+  (not a popup) since there's no library managing the popup/iframe handshake for us.
+  Code verifier/state kept in `localStorage` across the redirect.
+- Register the app at the Dropbox App Console (dropbox.com/developers/apps) as
+  **Scoped access**, **App folder** type — this is the equivalent of Graph's
+  `Files.ReadWrite.AppFolder` and, unlike that scope, isn't in question for personal
+  accounts; it's the standard option.
+- Permissions: `files.content.write` and `files.content.read`. Request
+  `token_access_type=offline` at authorize time to get a refresh token back.
+- App stays in Dropbox's "Development" status — supports up to 500 authorizing users,
+  no review needed for single-user use.
+- Store one file: `/planner.json`, resolved automatically under the app's own
+  `Apps/<app name>/` folder because of the App-folder access type.
+- Persist the refresh token in `localStorage`; handle expiry by re-prompting (clearing
+  local tokens and flipping the connect button back to "Connect Dropbox"), not by
   failing silently.
 
 ### Sync triggers
@@ -72,15 +82,13 @@ consent.
 
 ### Write protocol — optimistic concurrency
 
-Graph uses ETags where Dropbox uses revision IDs. Same idea.
+Dropbox uses a `rev` field where Graph used ETags. Same idea.
 
-1. `GET` the file, keep its `eTag`.
-2. `PUT` the content with an `if-match: <eTag>` header.
-3. On `412 Precondition Failed`, re-`GET`, merge, retry. Cap retries.
-4. Never `PUT` without `if-match`. That is how a week silently disappears.
-
-Note: Graph occasionally returns a changed ETag for an unchanged file, so treat a 412 as
-"re-merge and retry", never as an error to surface to the user.
+1. `POST /files/download`, keep the `rev` from the `Dropbox-API-Result` header.
+2. `POST /files/upload` with `mode: {".tag": "update", "update": "<rev>"}`.
+3. On `409` (rev mismatch / conflict), re-download, merge, retry. Cap retries.
+4. Never upload with `mode: "add"` once a file exists — only for the very first write,
+   when there's no rev yet. That is how a week silently disappears.
 
 ### Offline queue
 
@@ -184,10 +192,12 @@ entry slower, and entry speed is the whole product.
   whether `navigator.storage.persist()` is honoured there.
 - Current iOS support for web push from an installed PWA, if due-date reminders are
   wanted later.
-- Whether `Files.ReadWrite.AppFolder` is grantable for a personal Microsoft account, or
-  whether the broader `Files.ReadWrite` is unavoidable.
-- MSAL refresh token lifetime for a SPA public client, and whether silent renewal survives
-  an app that goes weeks between launches.
+- Whether Dropbox's OAuth token endpoint (`api.dropboxapi.com/oauth2/token`) actually
+  serves CORS for a pure browser client with no backend — expected to work (this is
+  Dropbox's documented public-client/PKCE model) but not yet confirmed against the live
+  site.
+- Dropbox refresh token lifetime for a Development-status app, and whether it survives an
+  app that goes weeks between launches.
 
 ## Test checklist
 
