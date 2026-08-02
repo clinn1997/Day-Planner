@@ -202,9 +202,13 @@ entry slower, and entry speed is the whole product.
 ## Test checklist
 
 - [ ] Airplane mode: add, edit, complete, delete entries; relaunch; all persist
-- [ ] Add on phone offline, add on desktop, both come online → both sets survive
-- [ ] Same entry edited on both devices → later edit wins, no duplicate
-- [ ] Delete on phone, sync, confirm it does not return from desktop
+- [x] Add on phone offline, add on desktop, both come online → both sets survive
+      (verified 2026-08-01 against live Dropbox sync)
+- [x] Same entry edited on both devices → later edit wins, no duplicate
+      (verified 2026-08-01)
+- [x] Delete on phone, sync, confirm it does not return from desktop
+      (verified 2026-08-01 — took a second sync cycle to fully propagate, worth
+      keeping an eye on if it ever feels slow to catch up in daily use)
 - [ ] Entry that wraps to three lines stays on the rule grid
 - [ ] Unfinished Friday entry appears on Monday with `↳3d`
 - [ ] Force-quit mid-typing → the entry is not lost

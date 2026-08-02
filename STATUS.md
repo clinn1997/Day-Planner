@@ -66,18 +66,33 @@ backend" architecture.
   reworded to say "personal cloud storage (Dropbox...)", and the "Verify rather than
   assume" list swapped to the two open Dropbox questions below.
 
-Not yet done:
-1. **Commit and push** — none of the above has been committed yet as of this note.
-2. **Live test the actual sign-in flow** — click "Connect Dropbox" on the deployed
-   site and confirm the full redirect round-trip (authorize → Dropbox login → redirect
-   back with `?code=` → token exchange) actually works. This is the biggest unverified
-   assumption: that Dropbox's OAuth token endpoint serves CORS to a pure browser client
-   with no backend. Expected to work (it's Dropbox's documented PKCE/public-client
-   model) but unconfirmed against the live site.
-3. Run the full sync test checklist from `spec.md` once sign-in works: two-device edit
-   conflict, delete propagation, offline queue, and — the other open question —
-   whether the refresh token survives a multi-week gap between launches on a
-   Development-status app.
+Done: committed, pushed, and live-tested. The redirect_uri initially had to be corrected
+in the Dropbox App Console (missing trailing slash caused a Dropbox-side
+`invalid_redirect_uri` error — fixed by the user). After that, the full OAuth round-trip
+(authorize → Dropbox login → redirect back with `?code=` → token exchange) was confirmed
+working against the live site — the button flips to "Disconnect" and stays connected.
+This resolves the biggest open question from the pivot: Dropbox's token endpoint does
+serve CORS to a pure browser client with no backend.
+
+**Phase 2 sync test checklist: all passed (2026-08-01)**, against the real live site
+with a real Dropbox account across an actual phone + desktop:
+- One-way sync (add on desktop, appears on phone)
+- Conflict resolution: same entry edited on both devices while one was offline → later
+  edit won, no duplicate
+- Delete propagation: deleted on phone → eventually disappeared on desktop too. Took a
+  second sync cycle to fully catch up the first time — not a failure, just noting it in
+  case it ever feels sluggish in daily use.
+- Offline queue: entry added while desktop was offline synced automatically once back
+  online, no manual retry needed.
+
+Only remaining open question: whether the refresh token survives a multi-week gap
+between launches on a Development-status Dropbox app. Nothing to do about this until
+enough real time has passed — if a reconnect prompt shows up unexpectedly after a long
+gap away from the app, that's this question resolving itself; note the outcome here.
+
+Phase 2 is otherwise done. Test entries (`SYNCTEST-*`) are still sitting in the live
+planner data — fine to delete whenever, they're just today's date, easy to spot and
+clear out during normal use.
 
 ## Local environment notes
 
